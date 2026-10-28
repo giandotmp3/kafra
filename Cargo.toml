@@ -1,0 +1,45 @@
+[package]
+name = "kafra"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.93"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/giandotmp3/kafra"
+description = "Repacks a Ragnarok Online data.grf into a much smaller .kafra archive, and reads its files back in their original formats"
+readme = "README.md"
+keywords = ["ragnarok-online", "grf", "archive", "avif", "opus"]
+categories = ["command-line-utilities", "compression", "game-development"]
+
+[features]
+default = ["cli"]
+# The AVIF and Opus decoders that pictures, sounds and grounds need to read back.
+rebuild = ["dep:image", "dep:zenavif", "dep:rav1d-safe", "dep:zenpixels-convert", "dep:opus-pure"]
+# The GRF reader, storing a GRF (which also needs avifenc and ffmpeg on the PATH) and the checker.
+store = ["rebuild", "dep:encoding_rs", "dep:flate2", "dep:zstd"]
+cli = ["store"]
+
+[dependencies]
+ruzstd = "0.9.1"
+encoding_rs = { version = "0.8", optional = true }
+# zlib-rs inflates GRF files faster than the default backend.
+flate2 = { version = "1", default-features = false, features = ["zlib-rs"], optional = true }
+image = { version = "0.25", default-features = false, features = ["bmp", "jpeg", "png", "tga"], optional = true }
+opus-pure = { version = "0.2.2", optional = true }
+zenavif = { version = "0.1.6", optional = true }
+# zenavif's AV1 decoder, without its runtime borrow tracking: pictures decode in 25-30% less time.
+rav1d-safe = { version = "0.5.7", features = ["unchecked"], optional = true }
+zenpixels-convert = { version = "0.2.16", features = ["rgb"], optional = true }
+# Compresses harder than ruzstd can.
+zstd = { version = "0.13", optional = true }
+
+[[bin]]
+name = "kafra"
+required-features = ["cli"]
+
+[[example]]
+name = "make_sample"
+required-features = ["store"]
+
+[[test]]
+name = "sample"
+required-features = ["store"]
