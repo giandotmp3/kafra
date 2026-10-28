@@ -103,7 +103,7 @@ fn altitude(original: &[u8], rebuilt: &[u8]) -> Result<(), String> {
     let height = u32::from_le_bytes(original[10..14].try_into().unwrap()) as usize;
     let end = 14 + width * height * 20;
     let (Some(before), Some(after)) = (original.get(14..end), rebuilt.get(14..end)) else { return Err("its cells are short".into()) };
-    for (cell, (a, b)) in before.chunks_exact(20).zip(after.chunks_exact(20)).enumerate() {
+    for (cell, (a, b)) in before.as_chunks::<20>().0.iter().zip(after.as_chunks::<20>().0).enumerate() {
         if a[16..] != b[16..] {
             return Err(format!("cell {cell}'s type differs"));
         }

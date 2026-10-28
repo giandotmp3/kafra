@@ -92,7 +92,7 @@ fn image(avif: &[u8], flags: u8) -> Result<Vec<u8>> {
     let alpha = flags & ALPHA != 0;
     if !alpha {
         let keyed = flags & KEYED != 0;
-        for pixel in pixels.chunks_exact_mut(4) {
+        for pixel in pixels.as_chunks_mut::<4>().0 {
             if keyed && pixel[3] < 64 {
                 pixel[..3].copy_from_slice(&[0xFF, 0, 0xFF]);
             } else if keyed && pixel[3] < 192 {
@@ -104,7 +104,7 @@ fn image(avif: &[u8], flags: u8) -> Result<Vec<u8>> {
     let (bytes, color) = if alpha {
         (pixels, ExtendedColorType::Rgba8)
     } else {
-        (pixels.chunks_exact(4).flat_map(|pixel| [pixel[0], pixel[1], pixel[2]]).collect(), ExtendedColorType::Rgb8)
+        (pixels.as_chunks::<4>().0.iter().flat_map(|pixel| [pixel[0], pixel[1], pixel[2]]).collect(), ExtendedColorType::Rgb8)
     };
     let mut out = Vec::new();
     let result = match flags & 3 {
@@ -251,7 +251,7 @@ pub fn ground(bytes: &[u8]) -> Option<Ground> {
     let mut places: HashMap<&[u8], u32> = HashMap::new();
     let mut indices = Vec::with_capacity(layout.surfaces * 4);
     let (mut textures, mut lightmaps, mut colors) = (Vec::new(), Vec::new(), Vec::<u8>::new());
-    for (index, surface) in surfaces.chunks_exact(40).enumerate() {
+    for (index, surface) in surfaces.as_chunks::<40>().0.iter().enumerate() {
         let place = *places.entry(&surface[..32]).or_insert_with(|| {
             table.push(&surface[..32]);
             table.len() as u32 - 1
@@ -343,7 +343,7 @@ fn cubes(bytes: &[u8], layout: &GroundLayout) -> Vec<Cube> {
 
 #[cfg(feature = "store")]
 fn lightmap_ids(surfaces: &[u8]) -> Vec<u16> {
-    surfaces.chunks_exact(40).map(|surface| u16::from_le_bytes(surface[34..36].try_into().unwrap())).collect()
+    surfaces.as_chunks::<40>().0.iter().map(|surface| u16::from_le_bytes(surface[34..36].try_into().unwrap())).collect()
 }
 
 /// Where each lightmap goes in the atlas, in tiles: on a map-sized grid each for the tops, north walls and east walls
@@ -427,9 +427,11 @@ fn ground_from_columns(columns: &[u8], atlas: impl FnOnce() -> Result<(u32, u32,
         let deltas = join(cursor.take(cube_count * 4)?, 4);
         let mut last = 0i32;
         *side = deltas
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .map(|delta| {
-                last = last.wrapping_add(i32::from_le_bytes(delta.try_into().unwrap()));
+                last = last.wrapping_add(i32::from_le_bytes(*delta));
                 last
             })
             .collect::<Vec<i32>>();
@@ -533,7 +535,7 @@ pub fn altitude(gat: &[u8], ground_path: &str, ground_entry: &[u8]) -> Option<Ve
     out.extend(ground_path.as_bytes());
     out.extend(&gat[..14]);
     let mut errors = Vec::with_capacity(width * height * 8);
-    for (index, cell) in cells.chunks_exact(20).enumerate() {
+    for (index, cell) in cells.as_chunks::<20>().0.iter().enumerate() {
         let kind = i32::from_le_bytes(cell[16..20].try_into().unwrap());
         out.push(type_byte(kind)?);
         let guess = predicted(&cubes, ground_width, [index % width, index / width]);
@@ -626,7 +628,7 @@ mod tests {
             let altitude = altitude(&gat, &format!("data\\{map}.gnd"), &entry).unwrap_or_else(|| panic!("{map}: GAT doesn't fit"));
             let rebuilt = rebuild_altitude(&altitude, &entry).unwrap();
             assert_eq!(rebuilt.len(), gat.len(), "{map}: GAT length");
-            for (a, b) in rebuilt[14..].chunks_exact(20).zip(gat[14..].chunks_exact(20)) {
+            for (a, b) in rebuilt[14..].as_chunks::<20>().0.iter().zip(gat[14..].as_chunks::<20>().0) {
                 assert_eq!(a[16..], b[16..]);
                 for corner in 0..4 {
                     let value = |cell: &[u8]| f32::from_le_bytes(cell[corner * 4..corner * 4 + 4].try_into().unwrap());

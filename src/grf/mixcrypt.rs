@@ -97,9 +97,9 @@ fn decrypt_data(data: &mut [u8], only_header_is_encrypted: bool, cycle: usize) {
 fn decrypt_data_blocks(data: &mut [u8], only_header_is_encrypted: bool, cycle: usize) {
     let mut non_des_count: usize = 0;
 
-    for (block_number, block_data) in data.chunks_exact_mut(BLOCK_SIZE).enumerate() {
+    for (block_number, block_data) in data.as_chunks_mut::<BLOCK_SIZE>().0.iter_mut().enumerate() {
         if should_apply_des(block_number, only_header_is_encrypted, cycle) {
-            let mut block = u64::from_be_bytes(block_data.try_into().unwrap());
+            let mut block = u64::from_be_bytes(*block_data);
             block = decode_des_block(block);
             block_data.copy_from_slice(&block.to_be_bytes());
         } else if !only_header_is_encrypted {
